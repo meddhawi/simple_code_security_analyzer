@@ -742,9 +742,55 @@ private:
         return 4; // Medium severity
     }
     
+    // === Tambahan: Simpan log ke CSV ===
+    void saveLogsToCSV(const string& filename = "log.csv") {
+        ofstream file(filename);
+        if (!file.is_open()) {
+            cout << "Failed to open file for writing logs." << endl;
+            return;
+        }
+        // Header
+        file << "timestamp,ipAddress,action,status,severity\n";
+        for (const auto& log : logArray) {
+            string safeAction = log.action;
+            replace(safeAction.begin(), safeAction.end(), ',', ';');
+            file << log.timestamp << "," << log.ipAddress << "," << safeAction << "," << log.status << "," << log.severity << "\n";
+        }
+        file.close();
+    }
+    // === Tambahan: Baca log dari CSV ===
+    void loadLogsFromCSV(const string& filename = "log.csv") {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            cout << "No existing log file found. Starting fresh." << endl;
+            return;
+        }
+        string line;
+        getline(file, line); // Skip header
+        while (getline(file, line)) {
+            stringstream ss(line);
+            string ts, ip, act, st, sevStr;
+            getline(ss, ts, ',');
+            getline(ss, ip, ',');
+            getline(ss, act, ',');
+            getline(ss, st, ',');
+            getline(ss, sevStr, ',');
+            int sev = sevStr.empty() ? 1 : stoi(sevStr);
+            LogEntry entry(ts, ip, act, st, sev);
+            logArray.push_back(entry);
+            logQueue.push(entry);
+            if (sev >= 7) alertStack.push(entry);
+        }
+        file.close();
+        // Rebuild graph and hash table
+        buildNetworkGraph();
+        advancedAlgs = new AdvancedAlgorithms(&logArray);
+    }
+    
 public:
     EnhancedLogAnalyzer() {
         initializeAnalyzers();
+        loadLogsFromCSV(); // <-- Load log dari file saat inisialisasi
     }
     
     ~EnhancedLogAnalyzer() {
@@ -772,6 +818,7 @@ public:
         if (severity >= 7) {
             alertStack.push(entry);
         }
+        saveLogsToCSV(); // <-- Simpan log ke file setiap kali tambah log
     }
     
     // Network topology analysis
@@ -1107,14 +1154,14 @@ int main() {
     int choice;
     
     // Add sample data with network connections
-    analyzer.addLog(getCurrentTimestamp(), "192.168.1.1", "HTTP GET /login", "200");
-    analyzer.addLog(getCurrentTimestamp(), "192.168.1.100", "HTTP POST to:192.168.1.1 /api", "200");
-    analyzer.addLog(getCurrentTimestamp(), "345.67.89.10", "HTTP POST to:192.168.1.1 /admin", "403");
-    analyzer.addLog(getCurrentTimestamp(), "345.67.89.10", "HTTP GET to:192.168.1.100 /data", "403");
-    analyzer.addLog(getCurrentTimestamp(), "192.168.1.50", "HTTPS GET to:192.168.1.1 /secure", "200");
-    analyzer.addLog(getCurrentTimestamp(), "789.12.34.56", "HTTP POST to:192.168.1.1 /login", "401");
-    analyzer.addLog(getCurrentTimestamp(), "192.168.1.1", "HTTP RESPONSE to:192.168.1.100", "200");
-    analyzer.addLog(getCurrentTimestamp(), "10.0.0.1", "HTTPS POST to:192.168.1.1 /api/data", "200");
+    // analyzer.addLog(getCurrentTimestamp(), "192.168.1.1", "HTTP GET /login", "200");
+    // analyzer.addLog(getCurrentTimestamp(), "192.168.1.100", "HTTP POST to:192.168.1.1 /api", "200");
+    // analyzer.addLog(getCurrentTimestamp(), "345.67.89.10", "HTTP POST to:192.168.1.1 /admin", "403");
+    // analyzer.addLog(getCurrentTimestamp(), "345.67.89.10", "HTTP GET to:192.168.1.100 /data", "403");
+    // analyzer.addLog(getCurrentTimestamp(), "192.168.1.50", "HTTPS GET to:192.168.1.1 /secure", "200");
+    // analyzer.addLog(getCurrentTimestamp(), "789.12.34.56", "HTTP POST to:192.168.1.1 /login", "401");
+    // analyzer.addLog(getCurrentTimestamp(), "192.168.1.1", "HTTP RESPONSE to:192.168.1.100", "200");
+    // analyzer.addLog(getCurrentTimestamp(), "10.0.0.1", "HTTPS POST to:192.168.1.1 /api/data", "200");
     
     cout << "Enhanced Cyber Security Log Analyzer initialized with sample data." << endl;
     cout << "This implementation includes Graph, BFS, DFS, Big O Analysis, and Advanced Algorithms." << endl;
